@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Install dependencies from the lockfile"
+
+set -euo pipefail
+
+npm ci

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Run all CI checks"
+
+set -euo pipefail
+
+npm run build
+npm test
+npm run format-check

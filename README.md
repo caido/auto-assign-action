@@ -162,6 +162,18 @@ The action will only run for non-draft PRs. If you want to run for all PRs, you 
 runOnDraft: true
 ```
 
+## Development
+
+This repository uses [mise](https://mise.jdx.dev/) to install the configured Node.js version and run common development tasks.
+
+```bash
+mise install
+mise run setup
+mise run check
+```
+
+Run `mise tasks` to see the other available tasks.
+
 ## :memo: Licence
 
 MIT

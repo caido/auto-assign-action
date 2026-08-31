@@ -5,6 +5,8 @@ on:
     paths:
       - 'dist/**'
 
+permissions: {}
+
 jobs:
   check-dist:
     runs-on: ubuntu-latest

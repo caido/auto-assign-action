@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Bundle the action for distribution"
+
+set -euo pipefail
+
+npm run package

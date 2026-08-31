@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Format the TypeScript sources"
+
+set -euo pipefail
+
+npm run format

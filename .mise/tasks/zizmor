@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Audit GitHub Actions for security issues"
+
+set -euo pipefail
+
+zizmor .
