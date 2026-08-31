@@ -599,6 +599,162 @@ describe('handlePullRequest', () => {
     expect(addAssigneesSpy).not.toBeCalled()
   })
 
+  test('adds reviewers only from groups matching changed pull request paths', async () => {
+    const paginate = jest.fn(async () => [
+      {
+        filename: 'src/frontend/button.ts',
+      },
+    ])
+    ;(github.getOctokit as jest.Mock).mockImplementation(() => ({
+      paginate,
+      rest: {
+        pulls: {
+          listFiles: async () => {},
+          requestReviewers: async () => {},
+        },
+        issues: {
+          addAssignees: async () => {},
+        },
+      },
+    }))
+
+    context.payload.pull_request!.changed_files = 1
+    const client = github.getOctokit('token')
+    const requestReviewersSpy = jest.spyOn(
+      client.rest.pulls,
+      'requestReviewers'
+    )
+    const config = {
+      addAssignees: false,
+      addReviewers: true,
+      useReviewGroups: true,
+      numberOfReviewers: 0,
+      reviewGroups: {
+        frontend: {
+          reviewers: ['frontend-reviewer'],
+          paths: ['src/frontend/**'],
+        },
+        backend: {
+          reviewers: ['backend-reviewer'],
+          paths: ['src/backend/**'],
+        },
+      },
+    } as any
+
+    await handler.handlePullRequest(client, context, config)
+
+    expect(paginate).toHaveBeenCalledWith(expect.any(Function), {
+      owner: 'kentaro-m',
+      repo: 'auto-assign',
+      pull_number: 1,
+      per_page: 100,
+    })
+    expect(requestReviewersSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewers: ['frontend-reviewer'] })
+    )
+  })
+
+  test('matches both the old and new path when a file is renamed', async () => {
+    ;(github.getOctokit as jest.Mock).mockImplementation(() => ({
+      paginate: async () => [
+        {
+          filename: 'src/shared/button.ts',
+          previous_filename: 'src/frontend/button.ts',
+        },
+      ],
+      rest: {
+        pulls: {
+          listFiles: async () => {},
+          requestReviewers: async () => {},
+        },
+        issues: {
+          addAssignees: async () => {},
+        },
+      },
+    }))
+
+    context.payload.pull_request!.changed_files = 1
+    const client = github.getOctokit('token')
+    const requestReviewersSpy = jest.spyOn(
+      client.rest.pulls,
+      'requestReviewers'
+    )
+    const config = {
+      addAssignees: false,
+      addReviewers: true,
+      useReviewGroups: true,
+      numberOfReviewers: 0,
+      reviewGroups: {
+        frontend: {
+          reviewers: ['frontend-reviewer'],
+          paths: ['src/frontend/**'],
+        },
+        shared: {
+          reviewers: ['shared-reviewer'],
+          paths: ['src/shared/**'],
+        },
+      },
+    } as any
+
+    await handler.handlePullRequest(client, context, config)
+
+    expect(requestReviewersSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reviewers: ['frontend-reviewer', 'shared-reviewer'],
+      })
+    )
+  })
+
+  test('falls back to all groups when GitHub truncates the changed files', async () => {
+    const warningSpy = jest.spyOn(core, 'warning')
+    ;(github.getOctokit as jest.Mock).mockImplementation(() => ({
+      paginate: async () => [{ filename: 'src/frontend/button.ts' }],
+      rest: {
+        pulls: {
+          listFiles: async () => {},
+          requestReviewers: async () => {},
+        },
+        issues: {
+          addAssignees: async () => {},
+        },
+      },
+    }))
+
+    context.payload.pull_request!.changed_files = 3001
+    const client = github.getOctokit('token')
+    const requestReviewersSpy = jest.spyOn(
+      client.rest.pulls,
+      'requestReviewers'
+    )
+    const config = {
+      addAssignees: false,
+      addReviewers: true,
+      useReviewGroups: true,
+      numberOfReviewers: 0,
+      reviewGroups: {
+        frontend: {
+          reviewers: ['frontend-reviewer'],
+          paths: ['src/frontend/**'],
+        },
+        backend: {
+          reviewers: ['backend-reviewer'],
+          paths: ['src/backend/**'],
+        },
+      },
+    } as any
+
+    await handler.handlePullRequest(client, context, config)
+
+    expect(warningSpy).toHaveBeenCalledWith(
+      expect.stringContaining('selecting reviewers from all groups')
+    )
+    expect(requestReviewersSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reviewers: ['frontend-reviewer', 'backend-reviewer'],
+      })
+    )
+  })
+
   test('adds all reviewers from a group that has less members than the number of reviews requested', async () => {
     // MOCKS
     ;(github.getOctokit as jest.Mock).mockImplementation(() => ({

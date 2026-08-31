@@ -5,6 +5,16 @@ import { PullRequest } from './pull_request'
 import { Client } from './types'
 import { PullRequestEvent } from '@octokit/webhooks-types'
 
+export interface PathFilteredReviewGroup {
+  reviewers: string[]
+  paths?: string[]
+  excludePaths?: string[]
+}
+
+export type ReviewGroups = {
+  [key: string]: string[] | PathFilteredReviewGroup
+}
+
 export interface Config {
   addReviewers: boolean
   addAssignees: boolean | string
@@ -19,7 +29,7 @@ export interface Config {
   skipKeywords: string[]
   useReviewGroups: boolean
   useAssigneeGroups: boolean
-  reviewGroups: { [key: string]: string[] }
+  reviewGroups: ReviewGroups
   assigneeGroups: { [key: string]: string[] }
   runOnDraft?: boolean
 }
@@ -97,9 +107,33 @@ export async function handlePullRequest(
     }
   }
 
+  let changedPaths: string[] | undefined
+  if (
+    addReviewers &&
+    useReviewGroups &&
+    reviewGroups &&
+    utils.hasPathFilteredGroups(reviewGroups)
+  ) {
+    try {
+      const changedFiles = await pr.listChangedPaths()
+      if (changedFiles.truncated) {
+        core.warning(
+          'The pull request contains more files than GitHub returned; selecting reviewers from all groups to avoid missing a required review'
+        )
+      } else {
+        changedPaths = changedFiles.paths
+      }
+    } catch (error) {
+      const message = error instanceof Error ? `: ${error.message}` : ''
+      core.warning(
+        `Unable to fetch changed pull request files; selecting reviewers from all groups${message}`
+      )
+    }
+  }
+
   if (addReviewers) {
     try {
-      const reviewers = utils.chooseReviewers(owner, config)
+      const reviewers = utils.chooseReviewers(owner, config, changedPaths)
 
       if (reviewers.length > 0) {
         await pr.addReviewers(reviewers)

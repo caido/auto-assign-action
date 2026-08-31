@@ -1,6 +1,8 @@
 import {
   chooseUsers,
   chooseUsersFromGroups,
+  groupMatchesChangedPaths,
+  hasPathFilteredGroups,
   includesSkipKeywords,
   fetchConfigurationFile,
 } from '../src/utils'
@@ -183,6 +185,103 @@ describe('chooseUsersFromGroups', () => {
     // THEN
     expect(list.length).toEqual(0)
     expect(list).toEqual([])
+  })
+
+  test('selects reviewers only from groups matching the changed paths', () => {
+    const reviewers = {
+      frontend: {
+        reviewers: ['frontend-reviewer'],
+        paths: ['src/frontend/**'],
+      },
+      backend: {
+        reviewers: ['backend-reviewer'],
+        paths: ['src/backend/**'],
+      },
+      maintainers: ['maintainer'],
+    }
+
+    const list = chooseUsersFromGroups('owner', reviewers, 0, [
+      'src/frontend/button.ts',
+    ])
+
+    expect(list).toEqual(['frontend-reviewer', 'maintainer'])
+  })
+
+  test('uses excludePaths to reserve paths for another group', () => {
+    const reviewers = {
+      frontend: {
+        reviewers: ['frontend-reviewer'],
+        paths: ['src/frontend/**'],
+      },
+      general: {
+        reviewers: ['general-reviewer'],
+        excludePaths: ['src/frontend/**'],
+      },
+    }
+
+    const list = chooseUsersFromGroups('owner', reviewers, 0, [
+      'src/frontend/button.ts',
+    ])
+
+    expect(list).toEqual(['frontend-reviewer'])
+  })
+
+  test('selects an exclude-only group when another changed path is eligible', () => {
+    const reviewers = {
+      frontend: {
+        reviewers: ['frontend-reviewer'],
+        paths: ['src/frontend/**'],
+      },
+      general: {
+        reviewers: ['general-reviewer'],
+        excludePaths: ['src/frontend/**'],
+      },
+    }
+
+    const list = chooseUsersFromGroups('owner', reviewers, 0, [
+      'src/frontend/button.ts',
+      'README.md',
+    ])
+
+    expect(list).toEqual(['frontend-reviewer', 'general-reviewer'])
+  })
+
+  test('excludePaths takes precedence over paths for the same file', () => {
+    expect(
+      groupMatchesChangedPaths(
+        {
+          reviewers: ['reviewer'],
+          paths: ['src/**'],
+          excludePaths: ['src/generated/**'],
+        },
+        ['src/generated/client.ts']
+      )
+    ).toEqual(false)
+  })
+
+  test('deduplicates reviewers selected from multiple groups', () => {
+    const reviewers = {
+      frontend: ['shared-reviewer'],
+      backend: ['SHARED-REVIEWER'],
+    }
+
+    const list = chooseUsersFromGroups('owner', reviewers, 0)
+
+    expect(list).toEqual(['shared-reviewer'])
+  })
+
+  test('detects groups with paths or excludePaths', () => {
+    expect(
+      hasPathFilteredGroups({
+        frontend: { reviewers: ['reviewer'], paths: ['src/**'] },
+      })
+    ).toEqual(true)
+    expect(
+      hasPathFilteredGroups({
+        general: { reviewers: ['reviewer'], excludePaths: ['docs/**'] },
+      })
+    ).toEqual(true)
+    expect(hasPathFilteredGroups({ legacy: ['reviewer'] })).toEqual(false)
   })
 })
 

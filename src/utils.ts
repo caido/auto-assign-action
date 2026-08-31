@@ -1,9 +1,16 @@
 import _ from 'lodash'
 import * as yaml from 'js-yaml'
-import { Config } from './handler'
+import { minimatch } from 'minimatch'
+import type { Config, PathFilteredReviewGroup, ReviewGroups } from './handler'
 import { Client } from './types'
 
-export function chooseReviewers(owner: string, config: Config): string[] {
+const globOptions = { dot: true, nonegate: true }
+
+export function chooseReviewers(
+  owner: string,
+  config: Config,
+  changedPaths?: string[]
+): string[] {
   const { useReviewGroups, reviewGroups, numberOfReviewers, reviewers } = config
   let chosenReviewers: string[] = []
   const useGroups: boolean =
@@ -13,7 +20,8 @@ export function chooseReviewers(owner: string, config: Config): string[] {
     chosenReviewers = chooseUsersFromGroups(
       owner,
       reviewGroups,
-      numberOfReviewers
+      numberOfReviewers,
+      changedPaths
     )
   } else {
     chosenReviewers = chooseUsers(reviewers, numberOfReviewers, owner)
@@ -94,14 +102,68 @@ export function includesSkipKeywords(
 
 export function chooseUsersFromGroups(
   owner: string,
-  groups: { [key: string]: string[] } | undefined,
-  desiredNumber: number
+  groups: ReviewGroups | undefined,
+  desiredNumber: number,
+  changedPaths?: string[]
 ): string[] {
   let users: string[] = []
   for (const group in groups) {
-    users = users.concat(chooseUsers(groups[group], desiredNumber, owner))
+    const groupConfig = groups[group]
+    if (!groupMatchesChangedPaths(groupConfig, changedPaths)) {
+      continue
+    }
+
+    const candidates = Array.isArray(groupConfig)
+      ? groupConfig
+      : groupConfig.reviewers
+    if (!Array.isArray(candidates)) {
+      throw new Error(
+        `Expected reviewers for review group '${group}' to be a list`
+      )
+    }
+    users = users.concat(chooseUsers(candidates, desiredNumber, owner))
   }
-  return users
+  return deduplicateUsers(users)
+}
+
+export function hasPathFilteredGroups(groups: ReviewGroups): boolean {
+  return Object.values(groups).some(
+    (group) =>
+      !Array.isArray(group) &&
+      ((group.paths !== undefined && group.paths.length > 0) ||
+        (group.excludePaths !== undefined && group.excludePaths.length > 0))
+  )
+}
+
+export function groupMatchesChangedPaths(
+  group: string[] | PathFilteredReviewGroup,
+  changedPaths?: string[]
+): boolean {
+  if (Array.isArray(group) || changedPaths === undefined) {
+    return true
+  }
+
+  const includePaths =
+    group.paths !== undefined && group.paths.length > 0 ? group.paths : ['**']
+  const excludePaths = group.excludePaths || []
+
+  return changedPaths.some(
+    (path) =>
+      includePaths.some((pattern) => minimatch(path, pattern, globOptions)) &&
+      !excludePaths.some((pattern) => minimatch(path, pattern, globOptions))
+  )
+}
+
+function deduplicateUsers(users: string[]): string[] {
+  const seen = new Set<string>()
+  return users.filter((user) => {
+    const normalizedUser = user.toLowerCase()
+    if (seen.has(normalizedUser)) {
+      return false
+    }
+    seen.add(normalizedUser)
+    return true
+  })
 }
 
 export async function fetchConfigurationFile(client: Client, options) {

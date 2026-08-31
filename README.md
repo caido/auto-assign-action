@@ -130,6 +130,52 @@ useAssigneeGroups: false
 #   - wip
 ```
 
+#### Filter reviewer groups by changed paths
+
+A reviewer group can use `paths` and `excludePaths` glob patterns instead of the legacy reviewer list. Patterns are matched against paths relative to the repository root. The action selects reviewers from every group with at least one changed file that matches `paths` without matching `excludePaths`.
+
+When `paths` is omitted, the group includes all paths by default. This allows a general group to exclude paths reserved for specialist groups without listing every other path in the repository:
+
+```yaml
+addReviewers: true
+numberOfReviewers: 1
+useReviewGroups: true
+
+reviewGroups:
+  frontend:
+    reviewers:
+      - frontendReviewerA
+      - frontendReviewerB
+    paths:
+      - 'apps/web/**'
+
+  backend:
+    reviewers:
+      - backendReviewerA
+      - backendReviewerB
+    paths:
+      - 'services/api/**'
+
+  general:
+    reviewers:
+      - generalReviewerA
+      - generalReviewerB
+    excludePaths:
+      - 'apps/web/**'
+      - 'services/api/**'
+```
+
+In this example, a pull request that only changes `apps/web/**` selects from `frontend`, while changes elsewhere select from `general`. A pull request that changes both frontend and general files selects from both groups. `excludePaths` takes precedence over `paths` for each changed file.
+
+The original list syntax remains supported and always matches:
+
+```yaml
+reviewGroups:
+  maintainers:
+    - reviewerA
+    - reviewerB
+```
+
 ### Assign Author as Assignee
 
 Add the PR creator as the assignee of the pull request.
