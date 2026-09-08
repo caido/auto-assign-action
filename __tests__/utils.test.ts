@@ -6,9 +6,15 @@ import {
   includesSkipKeywords,
   fetchConfigurationFile,
 } from '../src/utils'
-import * as github from '@actions/github'
+import * as github from '../src/github'
 
-jest.mock('@actions/github')
+jest.mock('../src/github')
+
+beforeEach(() => {
+  ;(github.getRepositoryContent as jest.Mock).mockImplementation(
+    (client, options) => client.rest.repos.getContent(options)
+  )
+})
 
 describe('chooseUsers', () => {
   test('returns the reviewer list without the PR creator', () => {
@@ -205,6 +211,39 @@ describe('chooseUsersFromGroups', () => {
     ])
 
     expect(list).toEqual(['frontend-reviewer', 'maintainer'])
+  })
+
+  test.each([
+    ['packages/codemirror/src/editor.ts', ['editor-reviewer']],
+    ['packages/ui/src/assets/licenses/example.txt', ['license-reviewer']],
+    ['package.json', ['dependency-reviewer']],
+    ['packages/ui/package.json', ['dependency-reviewer']],
+    ['packages/ui/src/button.ts', ['frontend-reviewer']],
+  ])('supports object review groups for %s', (path, expected) => {
+    const groups = {
+      frontend: {
+        reviewers: ['frontend-reviewer'],
+        excludePaths: [
+          'packages/codemirror/**',
+          'packages/ui/src/assets/licenses/**',
+          '**/package.json',
+        ],
+      },
+      codeEditor: {
+        reviewers: ['editor-reviewer'],
+        paths: ['packages/codemirror/**'],
+      },
+      licences: {
+        reviewers: ['license-reviewer'],
+        paths: ['packages/ui/src/assets/licenses/**'],
+      },
+      dependencies: {
+        reviewers: ['dependency-reviewer'],
+        paths: ['**/package.json'],
+      },
+    }
+
+    expect(chooseUsersFromGroups('author', groups, 1, [path])).toEqual(expected)
   })
 
   test('uses excludePaths to reserve paths for another group', () => {

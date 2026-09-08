@@ -1,15 +1,42 @@
-import * as github from '@actions/github'
-import * as core from '@actions/core'
-import { Context } from '@actions/github/lib/context'
+import * as githubApi from '../src/github'
+import * as core from '../src/core'
+import { Context } from '../src/github'
 import * as handler from '../src/handler'
 
-jest.mock('@actions/core')
-jest.mock('@actions/github')
+jest.mock('../src/core')
+jest.mock('../src/github')
+
+type LegacyTestClient = githubApi.Client & {
+  rest: {
+    pulls: {
+      requestReviewers: (options: { reviewers?: string[] }) => Promise<unknown>
+      listFiles?: (options: unknown) => Promise<unknown>
+    }
+    issues: {
+      addAssignees: (options: { assignees?: string[] }) => Promise<unknown>
+    }
+  }
+  paginate?: (...args: unknown[]) => Promise<unknown>
+}
+
+const github = githubApi as Omit<typeof githubApi, 'getOctokit'> & {
+  getOctokit: jest.Mock<LegacyTestClient>
+}
 
 describe('handlePullRequest', () => {
   let context: Context
 
   beforeEach(async () => {
+    ;(github.requestReviewers as jest.Mock).mockImplementation(
+      (client, options) => client.rest.pulls.requestReviewers(options)
+    )
+    ;(github.addAssignees as jest.Mock).mockImplementation((client, options) =>
+      client.rest.issues.addAssignees(options)
+    )
+    ;(github.listPullRequestFiles as jest.Mock).mockImplementation(
+      (client, options) => client.paginate(client.rest.pulls.listFiles, options)
+    )
+
     context = {
       eventName: '',
       workflow: '',

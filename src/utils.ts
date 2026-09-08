@@ -2,6 +2,7 @@ import _ from 'lodash'
 import * as yaml from 'js-yaml'
 import { minimatch } from 'minimatch'
 import type { Config, PathFilteredReviewGroup, ReviewGroups } from './handler'
+import { getRepositoryContent } from './github'
 import { Client } from './types'
 
 const globOptions = { dot: true, nonegate: true }
@@ -168,16 +169,16 @@ function deduplicateUsers(users: string[]): string[] {
 
 export async function fetchConfigurationFile(client: Client, options) {
   const { owner, repo, path, ref } = options
-  const result = await client.rest.repos.getContent({
+  const result = await getRepositoryContent(client, {
     owner,
     repo,
     path,
     ref,
   })
 
-  const data: any = result.data
+  const data = result.data
 
-  if (!data.content) {
+  if (Array.isArray(data) || !('content' in data) || !data.content) {
     throw new Error('the configuration file is not found')
   }
 

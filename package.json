@@ -13,14 +13,13 @@
     "format": "prettier --write **/*.ts",
     "format-check": "prettier --check **/*.ts",
     "package": "ncc build --source-map --license licenses.txt",
-    "prepare": "husky install"
+    "generate:github-types": "openapi-typescript https://raw.githubusercontent.com/github/rest-api-description/3cef12e8a02d612ad032473d4fb87266f2befeae/descriptions/api.github.com/api.github.com.yaml -o src/generated/github.d.ts"
   },
   "author": "Kentaro Matsushita",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "1.11.1",
-    "@actions/github": "5.1.1",
     "js-yaml": "3.15.1",
+    "openapi-fetch": "0.17.0",
     "lodash": "4.18.1",
     "minimatch": "10.2.6"
   },
@@ -31,16 +30,12 @@
     "@types/lodash": "4.14.141",
     "@types/node": "^24.12.0",
     "@vercel/ncc": "0.44.0",
-    "husky": "8.0.3",
+    "openapi-typescript": "7.13.0",
     "jest": "29.7.0",
     "jest-circus": "29.7.0",
     "jest-mock": "29.7.0",
-    "lint-staged": "13.3.0",
     "prettier": "3.8.5",
     "ts-jest": "29.4.11",
     "typescript": "5.9.3"
-  },
-  "lint-staged": {
-    "*.ts": "prettier --write"
   }
 }

@@ -1,12 +1,12 @@
 import { mocked } from 'jest-mock'
-import * as core from '@actions/core'
-import * as github from '@actions/github'
+import * as core from '../src/core'
+import * as github from '../src/github'
 import { run } from '../src/run'
 import * as utils from '../src/utils'
 import * as handler from '../src/handler'
 
-jest.mock('@actions/core')
-jest.mock('@actions/github')
+jest.mock('../src/core')
+jest.mock('../src/github')
 jest.mock('../src/utils')
 jest.mock('../src/handler')
 
@@ -14,7 +14,7 @@ const mockedUtils = mocked(utils)
 const coreMocked = mocked(core)
 const mockedHandler = mocked(handler)
 
-describe.only('run', () => {
+describe('run', () => {
   beforeEach(() => {
     // @ts-ignore
     github.context = {

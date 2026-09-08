@@ -1,5 +1,5 @@
-import * as core from '@actions/core'
-import { Context } from '@actions/github/lib/context'
+import * as core from './core'
+import { Context } from './github'
 import * as utils from './utils'
 import { PullRequest } from './pull_request'
 import { Client } from './types'

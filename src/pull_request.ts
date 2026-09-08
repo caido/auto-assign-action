@@ -1,5 +1,10 @@
-import * as core from '@actions/core'
-import { Context } from '@actions/github/lib/context'
+import * as core from './core'
+import {
+  addAssignees,
+  Context,
+  listPullRequestFiles,
+  requestReviewers,
+} from './github'
 import { Client } from './types'
 
 export interface ChangedPaths {
@@ -18,7 +23,7 @@ export class PullRequest {
 
   async addReviewers(reviewers: string[]): Promise<void> {
     const { owner, repo, number: pull_number } = this.context.issue
-    const result = await this.client.rest.pulls.requestReviewers({
+    const result = await requestReviewers(this.client, {
       owner,
       repo,
       pull_number,
@@ -29,7 +34,7 @@ export class PullRequest {
 
   async addAssignees(assignees: string[]): Promise<void> {
     const { owner, repo, number: issue_number } = this.context.issue
-    const result = await this.client.rest.issues.addAssignees({
+    const result = await addAssignees(this.client, {
       owner,
       repo,
       issue_number,
@@ -40,7 +45,7 @@ export class PullRequest {
 
   async listChangedPaths(): Promise<ChangedPaths> {
     const { owner, repo, number: pull_number } = this.context.issue
-    const files = await this.client.paginate(this.client.rest.pulls.listFiles, {
+    const files = await listPullRequestFiles(this.client, {
       owner,
       repo,
       pull_number,

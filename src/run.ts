@@ -1,5 +1,5 @@
-import * as core from '@actions/core'
-import * as github from '@actions/github'
+import * as core from './core'
+import * as github from './github'
 import * as utils from './utils'
 import * as handler from './handler'
 
