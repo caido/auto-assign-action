@@ -78,6 +78,30 @@ export class PullRequest {
     return pullRequestLabels.some((label) => labels.includes(label.name))
   }
 
+  async clearReviewers(): Promise<void> {
+    const { owner, repo, number: pull_number } = this.context.issue
+    const { data } = await listRequestedReviewers(this.client, {
+      owner,
+      repo,
+      pull_number,
+    })
+
+    const reviewers = data.users.map((user) => user.login)
+    const team_reviewers = data.teams.map((team) => team.slug)
+
+    if (reviewers.length === 0 && team_reviewers.length === 0) {
+      return
+    }
+
+    await removeRequestedReviewers(this.client, {
+      owner,
+      repo,
+      pull_number,
+      reviewers,
+      team_reviewers,
+    })
+  }
+
   async keepOnlyOneReviewer(reviewer: string): Promise<void> {
     const { owner, repo, number: pull_number } = this.context.issue
     const { data } = await listRequestedReviewers(this.client, {

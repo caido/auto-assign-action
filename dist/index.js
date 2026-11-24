@@ -467,6 +467,9 @@ function handlePullRequest(client, context, config) {
             try {
                 const reviewers = utils.chooseReviewers(owner, config, changedPaths);
                 if (reviewers.length > 0) {
+                    if (config.clearReviewers) {
+                        yield pr.clearReviewers();
+                    }
                     yield pr.addReviewers(reviewers);
                     if (config.keepOnlyOneReviewer) {
                         yield pr.keepOnlyOneReviewer(reviewers[0]);
@@ -610,6 +613,28 @@ class PullRequest {
         }
         const { labels: pullRequestLabels = [] } = this.context.payload.pull_request;
         return pullRequestLabels.some((label) => labels.includes(label.name));
+    }
+    clearReviewers() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { owner, repo, number: pull_number } = this.context.issue;
+            const { data } = yield (0, github_1.listRequestedReviewers)(this.client, {
+                owner,
+                repo,
+                pull_number,
+            });
+            const reviewers = data.users.map((user) => user.login);
+            const team_reviewers = data.teams.map((team) => team.slug);
+            if (reviewers.length === 0 && team_reviewers.length === 0) {
+                return;
+            }
+            yield (0, github_1.removeRequestedReviewers)(this.client, {
+                owner,
+                repo,
+                pull_number,
+                reviewers,
+                team_reviewers,
+            });
+        });
     }
     keepOnlyOneReviewer(reviewer) {
         return __awaiter(this, void 0, void 0, function* () {
