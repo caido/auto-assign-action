@@ -33,6 +33,7 @@ export interface Config {
   assigneeGroups: { [key: string]: string[] }
   runOnDraft?: boolean
   keepOnlyOneReviewer?: boolean
+  clearReviewers?: boolean
 }
 
 export async function handlePullRequest(
@@ -137,6 +138,10 @@ export async function handlePullRequest(
       const reviewers = utils.chooseReviewers(owner, config, changedPaths)
 
       if (reviewers.length > 0) {
+        if (config.clearReviewers) {
+          await pr.clearReviewers()
+        }
+
         await pr.addReviewers(reviewers)
 
         if (config.keepOnlyOneReviewer) {
